@@ -1,0 +1,4 @@
+ pyinstaller --onefile --hidden-import fyres_apiv3 main.py
+pyinstaller --onefile --hidden-import fyres_apiv3 --add-data ".venv\Lib\site-packages\fyers_apiv3\FyersWebsocket\map.json;fyers_apiv3\FyersWebsocket" main.py
+
+"run inside PyCharm .venv"
