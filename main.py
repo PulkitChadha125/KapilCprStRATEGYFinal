@@ -156,8 +156,12 @@ def write_to_order_logs(message):
         file.write(message + '\n')
 
 def get_user_settings():
-    global result_dict, instrument_id_list
+    global result_dict, instrument_id_list, Equity_instrument_id_list, Future_instrument_id_list, FyerSymbolList
+    from datetime import datetime
+    import pandas as pd
+
     delete_file_contents("OrderLog.txt")
+
     try:
         csv_path = 'TradeSettings.csv'
         df = pd.read_csv(csv_path)
@@ -165,6 +169,9 @@ def get_user_settings():
 
         result_dict = {}
         instrument_id_list = []
+        Equity_instrument_id_list = []
+        Future_instrument_id_list = []
+        FyerSymbolList = []
 
         for index, row in df.iterrows():
             symbol = row['Symbol']
@@ -172,24 +179,25 @@ def get_user_settings():
 
             # Convert expiry to API format: DDMonYYYY (e.g., 29May2025)
             expiry_api_format = datetime.strptime(expiry, "%d-%m-%Y").strftime("%d%b%Y")
+            expiry_date = datetime.strptime(expiry, "%d-%m-%Y")
+
+            # Construct Fyers Future Symbol: NSE:<SYMBOL><YY><MON>FUT
+            
+            
+            
 
             # Fetch FUTSTK instrument ID
             fut_response = xts_marketdata.get_future_symbol(
-                exchangeSegment=2,      # NSEFO
+                exchangeSegment=2,  # NSEFO
                 series='FUTSTK',
                 symbol=symbol,
                 expiryDate=expiry_api_format
             )
 
-            # print(f"fut_response: {fut_response}")
-            
-
             if fut_response['type'] == 'success' and 'result' in fut_response:
                 result_item = fut_response['result'][0]
                 NSEFOinstrument_id = int(result_item['ExchangeInstrumentID'])
                 lot_size = int(result_item.get('LotSize', 0))
-                # print(f"lot_size: {lot_size}")
-
             else:
                 print(f"[ERROR] Could not get FUTSTK instrument ID for {symbol} {expiry_api_format}")
                 NSEFOinstrument_id = None
@@ -197,7 +205,7 @@ def get_user_settings():
 
             # Fetch EQ instrument ID (NSECM)
             eq_response = xts_marketdata.get_equity_symbol(
-                exchangeSegment=1,      # NSECM
+                exchangeSegment=1,  # NSECM
                 series='EQ',
                 symbol=symbol
             )
@@ -207,31 +215,52 @@ def get_user_settings():
             else:
                 print(f"[ERROR] Could not get EQ instrument ID for {symbol}")
                 NSECMinstrument_id = None
+            
+            try:
+    # Parse '26-06-2025' → datetime object
+                expiry_date = datetime.strptime(expiry, '%d-%m-%Y')
+    # Format as '25JUN'
+                new_date_string = expiry_date.strftime('%y%b').upper()
+                fyers_fut_symbol = f"NSE:{symbol}{new_date_string}FUT"
+            except ValueError as e:
+                print(f"[ERROR] Failed to parse expiry for symbol {symbol}: {expiry}. Error: {e}")
+                fyers_fut_symbol = None
 
             symbol_dict = {
-                "Symbol": symbol,"unique_key" : f"{symbol}_{expiry}",
+                "Symbol": symbol, "unique_key": f"{symbol}_{expiry}",
                 "Expiry": expiry,
-                "Quantity": int(row['Quantity']),"LotSize": lot_size,
+                "Quantity": int(row['Quantity']), "LotSize": lot_size,
                 "Timeframe": int(row['Timeframe']),
-                "MA1": int(row['MA1']),"MA2": int(row['MA2']),'RSI_Period':int(row['RSI_Period']),'RSI_Buy':int(row['RSI_Buy']),
-                "RSI_Sell":int(row['RSI_Sell']),'TargetBuffer':float(row['TargetBuffer']),""
+                "MA1": int(row['MA1']), "MA2": int(row['MA2']),
+                "RSI_Period": int(row['RSI_Period']), "RSI_Buy": int(row['RSI_Buy']),
+                "RSI_Sell": int(row['RSI_Sell']), "TargetBuffer": float(row['TargetBuffer']),
                 "StartTime": datetime.strptime(row["StartTime"], "%H:%M:%S").time(),
                 "StopTime": datetime.strptime(row["Stoptime"], "%H:%M:%S").time(),
                 "SquareOffTime": datetime.strptime(row["SquareOffTime"], "%H:%M").time(),
-                "PercentagePrice": float(row['PercentagePrice']), "PerVal": None, "TakeTrade": None, "R1_S1_CONDITION": None,
+                "PercentagePrice": float(row['PercentagePrice']),
+                "PerVal": None, "TakeTrade": None, "R1_S1_CONDITION": None,
                 "NSEFOexchangeInstrumentID": NSEFOinstrument_id,
-                "NSECMexchangeInstrumentID": NSECMinstrument_id,"PrevOpen": None,"PrevHigh": None,"OrderQuantity":None,
-                "PrevLow": None,"PrevClose": None,"ma1Val": None,"ma2Val": None,"RsiVal":None,"last_run_time": None,
-                "PvtPoint": None,"BottomRange": None,"TopRange": None,"R1": None,"R2": None,"R3": None,"last_close":None,
-                "S1": None,"S2": None,"S3": None,"AllowedDiff":None,"ActualDiff":None,"Trade":None,"TargetExecuted":False,"EQltp":None,"Futltp":None,"buytargetvalue":None,
-                "selltargetvalue":None,"dayOpen":None,"AllowedTradeType":None,"Allowed_S1_Pivot":None,"Allowed_R1_Pivot":None,
-                "Allowed_S1_Pivot_value":None,"Allowed_R1_Pivot_value":None,"R1_S1_CONDITION":None,"last_high":None,"last_low":None,
-                "SquareOffExecuted":False,"Series":None,"Candletimestamp":None,
-                "FyersTf":row['FyersTf'],"FyresSymbol":f"NSE:{symbol}-EQ","FyresLtp":None,"FyersFutSymbol":None,"FyersFutLtp":None
+                "NSECMexchangeInstrumentID": NSECMinstrument_id,
+                "PrevOpen": None, "PrevHigh": None, "PrevLow": None, "PrevClose": None,
+                "ma1Val": None, "ma2Val": None, "RsiVal": None, "last_run_time": None,
+                "PvtPoint": None, "BottomRange": None, "TopRange": None,
+                "R1": None, "R2": None, "R3": None, "last_close": None,
+                "S1": None, "S2": None, "S3": None, "AllowedDiff": None,
+                "ActualDiff": None, "Trade": None, "TargetExecuted": False,
+                "EQltp": None, "Futltp": None, "buytargetvalue": None,
+                "selltargetvalue": None, "dayOpen": None, "AllowedTradeType": None,
+                "Allowed_S1_Pivot": None, "Allowed_R1_Pivot": None,
+                "Allowed_S1_Pivot_value": None, "Allowed_R1_Pivot_value": None,
+                "last_high": None, "last_low": None, "SquareOffExecuted": False,
+                "Series": None, "Candletimestamp": None,
+                "FyersTf": row['FyersTf'],
+                "FyresSymbol": f"NSE:{symbol}-EQ",
+                "FyresLtp": None,
+                "FyersFutSymbol": fyers_fut_symbol,
+                "FyersFutLtp": None
             }
 
             result_dict[symbol_dict["unique_key"]] = symbol_dict
-
 
             if NSECMinstrument_id:
                 Equity_instrument_id_list.append({
@@ -244,8 +273,10 @@ def get_user_settings():
                     "exchangeSegment": 2,
                     "exchangeInstrumentID": NSEFOinstrument_id
                 })
-            
+
             FyerSymbolList.append(symbol_dict["FyresSymbol"])
+            FyerSymbolList.append(symbol_dict["FyersFutSymbol"])
+
 
         print("result_dict: ", result_dict)
         print("-" * 50)
@@ -256,6 +287,7 @@ def get_user_settings():
 
     except Exception as e:
         print("Error happened in fetching symbol", str(e))
+
 
 
 def get_api_credentials():
@@ -522,8 +554,13 @@ def UpdateData():
         for key, value in result_dict.items():
             if value.get('FyresSymbol') == symbol:
                 value['FyresLtp'] = float(ltp)
-                print(f"Updated {symbol} with LTP: {ltp}")
+                print(f"[EQ] Updated {symbol} with LTP: {ltp}")
+                break  # Optional: skip if you assume each symbol is unique
+            elif value.get('FyersFutSymbol') == symbol:
+                value['FyersFutLtp'] = float(ltp)
+                print(f"[FUT] Updated {symbol} with LTP: {ltp}")
                 break
+
     
 
    
@@ -659,11 +696,13 @@ def main_strategy():
                 params["SquareOffExecuted"] = True
                 if params["Trade"] == "BUY":
                     print(f"[{params['Symbol']}] Executing BUY position squareoff")
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
+                                price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} BUY position squareoff at {params['last_close']}")
                 elif params["Trade"] == "SELL":
                     print(f"[{params['Symbol']}] Executing SELL position squareoff")
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="BUY",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} SELL position squareoff at {params['last_close']}")
                 params["Trade"] = "TAKENOMORETRADES"
                 params["TargetExecuted"] = True
@@ -823,6 +862,7 @@ def main_strategy():
                     last_high: {params["last_high"]}
                     last_low: {params["last_low"]}
                     FyresLtp: {params["FyresLtp"]}
+                    FyersFutLtp:{params["FyersFutLtp"]}
                     """)
             print("-" * 50)  # dashed line separator
 
@@ -836,7 +876,8 @@ def main_strategy():
                 if params["Trade"] == "BUY":
                     print(f"[{params['Symbol']}] Buy Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} price: {params['FyresLtp']} or last_high: {params['last_high']} reached Buy Target Value= {params["buytargetvalue"]}")
 
             if (params["FyresLtp"] is not None and (params['FyresLtp']<=params["selltargetvalue"] or params["last_low"]<=params["selltargetvalue"]) and 
@@ -847,7 +888,8 @@ def main_strategy():
                 if params["Trade"] == "SELL":
                     print(f"[{params['Symbol']}] Sell Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="BUY",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} selltargetvalue REACHED last_low: {params["last_low"]} or EQltp: {params['FyresLtp']}, selltargetvalue: {params["selltargetvalue"] }")
                 
                 
@@ -862,7 +904,8 @@ def main_strategy():
                     print(f"[{params['Symbol']}] Buy condition met")
                     params["Trade"] = "BUY"
                     print(f"[{params['Symbol']}] BUY @ {params['Symbol']}  {params["last_close"]}")
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="BUY",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} BUY @ {params['Symbol']}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1>ema2}, last_close>ema1: {params['last_close']>ema1}, last_close>ema2: {params['last_close']>ema2}, last_close>r1: {params['last_close']>r1}")
 
                     # sell condition
@@ -870,7 +913,8 @@ def main_strategy():
                     params["last_close"] < s1 and params["last_close"]<prev_low and ema1<ema2 ) and params["Trade"] == None:
                     print(f"[{params['Symbol']}] Sell condition met")
                     params["Trade"] = "SELL"
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",price=params["FyresLtp"],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="SELL",price=params["FyersFutLtp"],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} SELL @ {params['Symbol']}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}")
 
                 # REENTRY TRIGGERED LOGIC
@@ -882,7 +926,8 @@ def main_strategy():
                         print(f"[{params['Symbol']}] Buy re-entry condition met")
                         params["Trade"] = "BUY"
                         print(f"[{params['Symbol']}] BUY re-entry condition met")
-                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="BUY",price=params['FyresLtp'],unique_key="1234")
+                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                    order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY re-entry {params['last_close']}, ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1>ema2}, last_close>ema1: {params['last_close']>ema1}, last_close>ema2: {params['last_close']>ema2}, last_close>r1: {params['last_close']>r1}")
                     
                 if params["Trade"] == "REENTERYCHECKED":
@@ -891,7 +936,8 @@ def main_strategy():
                         print(f"[{params['Symbol']}] Sell re-entry condition met")
                         params["Trade"] = "SELL"
                         print(f"[{params['Symbol']}] SELL re-entry condition met")
-                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",price=params['FyresLtp'],unique_key="1234")
+                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                    order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL re-entry {params['last_close']}, ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}")
 
 
@@ -904,7 +950,7 @@ def main_strategy():
                     params["Trade"] = "BUYSTOPLOSS"
                     print(f"[{params['Symbol']}] BUY Stoploss executed")    
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
-                                 price=params['FyresLtp'],unique_key="1234")  
+                                 price=params['FyersFutLtp'],unique_key="1234")  
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}")
 
 
@@ -915,7 +961,8 @@ def main_strategy():
                     print(f"[{params['Symbol']}]Sell Stoploss executed")
                     params["Trade"] = "SELLSTOPLOSS"
                     print(f"[{params['Symbol']}] SELL Stoploss executed")
-                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="BUY",price=params['FyresLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}")
 
 

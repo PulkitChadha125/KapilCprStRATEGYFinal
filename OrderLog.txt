@@ -1,1 +1,1 @@
-[2025-06-25 13:24:20.024442] Candletimestamp: 2025-06-25 13:24:00 IREDA selltargetvalue REACHED last_low: 170.92 or FyresLtp: 170.91, selltargetvalue: 171.7905106666667
+[2025-07-02 21:29:29.535715] Candletimestamp: 2025-07-02 15:27:00 IREDA selltargetvalue REACHED last_low: 168.11 or FyresLtp: 168.23, selltargetvalue: 171.7905106666667
