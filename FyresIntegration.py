@@ -18,8 +18,9 @@ shared_data = {}
 shared_data_2 = {}
 # Lock to ensure thread-safe access to the shared data
 def apiactivation(client_id,redirect_uri,response_type,state,secret_key,grant_type):
-    appSession = fyersModel.SessionModel(client_id = client_id, redirect_uri = redirect_uri,response_type=response_type,state=state,secret_key=secret_key,grant_type=grant_type)
-    # ## Make  a request to generate_authcode object this will return a login url which you need to open in your browser from where you can get the generated auth_code
+    appSession = fyersModel.SessionModel(client_id = client_id, redirect_uri = redirect_uri,
+                                         response_type=response_type,state=state,
+                                         secret_key=secret_key,grant_type=grant_type)# ## Make  a request to generate_authcode object this will return a login url which you need to open in your browser from where you can get the generated auth_code
     generateTokenUrl = appSession.generate_authcode()
     print("generateTokenUrl: ",generateTokenUrl)
 
@@ -52,7 +53,7 @@ def automated_login(client_id,secret_key,FY_ID,TOTP_KEY,PIN,redirect_uri):
     URL_VERIFY_OTP2 = "https://api-t2.fyers.in/vagator/v2/verify_pin_v2"
     payload2 = {"request_key": res2["request_key"], "identity_type": "pin", "identifier": getEncodedString(PIN)}
     res3 = ses.post(url=URL_VERIFY_OTP2, json=payload2).json()
-    print(res3)
+    print("res3: ",res3)
 
     ses.headers.update({
         'authorization': f"Bearer {res3['data']['access_token']}"
