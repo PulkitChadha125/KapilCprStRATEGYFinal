@@ -257,7 +257,23 @@ def get_user_settings():
                 "FyresSymbol": f"NSE:{symbol}-EQ",
                 "FyresLtp": None,
                 "FyersFutSymbol": fyers_fut_symbol,
-                "FyersFutLtp": None
+                "FyersFutLtp": None,
+                "PrevWeekOpen":None,    
+                "PrevWeekHigh":None,
+                "PrevWeekLow":None,
+                "PrevWeekClose":None,
+                "PrevWeekPivot":None,
+                "PrevWeekTop":None,
+                "PrevWeekBottom":None,
+                "PrevMonthOpen":None,
+                "PrevMonthHigh":None,
+                "PrevMonthLow":None,
+                "PrevMonthClose":None,
+                "PrevMonthPivot":None,
+                "PrevMonthTop":None,
+                "PrevMonthBottom":None,
+                "USE_Monthly_cpr": row['USE_Monthly_cpr'],"WEEKLY_CONDITION":None,"MONTHLY_CONDITION":None
+
             }
 
             result_dict[symbol_dict["unique_key"]] = symbol_dict
@@ -563,7 +579,40 @@ def UpdateData():
 
     
 
-   
+def get_previous_month_ohlc(weekly_data):
+    # Get today's date
+    today = pd.Timestamp.now(tz='Asia/Kolkata')
+    
+    # Get previous month and year
+    if today.month == 1:
+        prev_month = 12
+        prev_year = today.year - 1
+    else:
+        prev_month = today.month - 1
+        prev_year = today.year
+
+    # Filter rows from previous month
+    monthly_data = weekly_data[
+        (weekly_data.index.month == prev_month) &
+        (weekly_data.index.year == prev_year)
+    ]
+
+    if monthly_data.empty:
+        print("No data for previous month.")
+        return None
+
+    # Calculate OHLC
+    open_price = monthly_data.iloc[0]['open']
+    high_price = monthly_data['high'].max()
+    low_price = monthly_data['low'].min()
+    close_price = monthly_data.iloc[-1]['close']
+
+    return {
+        "open": open_price,
+        "high": high_price,
+        "low": low_price,
+        "close": close_price
+    }   
 
 
 
@@ -622,6 +671,66 @@ def main_strategy():
                     params["PrevClose"] = c
                     params["Series"] = series
 
+                    try:
+                        weekly_data = fetchOHLC_Weekly(params["FyresSymbol"])
+                        print(f"weekly_data: {weekly_data}")
+                    except Exception as e:
+                        print(f"Error fetching weekly data for {symbol_name}: {str(e)}")
+                        print(f"Trying Again fetching weekly data for {symbol_name}")
+                        time.sleep(30)
+                        weekly_data = fetchOHLC_Weekly(params["FyresSymbol"])
+                        print(f"weekly_data: {weekly_data}")
+                        traceback.print_exc()
+                        continue
+
+                    # Get previous week's data (second last row)
+                    previous_week_data = weekly_data.iloc[-2]
+
+
+                
+                    params["PrevWeekOpen"] = previous_week_data["open"]
+                    params["PrevWeekHigh"] = previous_week_data["high"]
+                    params["PrevWeekLow"] = previous_week_data["low"]
+                    params["PrevWeekClose"] = previous_week_data["close"]
+
+                    prevWeekPivot = (previous_week_data["open"] + previous_week_data["high"] + previous_week_data["low"]) / 3
+                    prevWeekTop = (previous_week_data["high"] + previous_week_data["low"]) / 2
+                    prevWeekBottom = (prevWeekPivot - prevWeekTop) + prevWeekPivot
+                    params["PrevWeekPivot"] = prevWeekPivot
+                    params["PrevWeekTop"] = prevWeekTop
+                    params["PrevWeekBottom"] = prevWeekBottom
+
+
+                    if params["USE_Monthly_cpr"] == True:
+                        monthly_data =  get_previous_month_ohlc(weekly_data)
+                        if monthly_data:
+                            prevmonthopen = monthly_data["open"]
+                            prevmonthhigh = monthly_data["high"]
+                            prevmonthlow = monthly_data["low"]
+                            prevmonthclose = monthly_data["close"]
+                            params["PrevMonthOpen"] = prevmonthopen
+                            params["PrevMonthHigh"] = prevmonthhigh
+                            params["PrevMonthLow"] = prevmonthlow
+                            params["PrevMonthClose"] = prevmonthclose
+
+                            prevMonthPivot = (prevmonthopen + prevmonthhigh + prevmonthlow) / 3
+                            prevMonthTop = (prevmonthhigh + prevmonthlow) / 2
+                            prevMonthBottom = (prevMonthPivot - prevMonthTop) + prevMonthPivot
+                            params["PrevMonthPivot"] = prevMonthPivot
+                            params["PrevMonthTop"] = prevMonthTop
+                            params["PrevMonthBottom"] = prevMonthBottom 
+
+                            print("Previous Month OHLC:")
+                            print(f"Open: {prevmonthopen}, High: {prevmonthhigh}, Low: {prevmonthlow}, Close: {prevmonthclose}")
+                        else:
+                            # Handle case where no data is available
+                            prevmonthopen = prevmonthhigh = prevmonthlow = prevmonthclose = None
+                            print("No data available for previous month.")
+
+
+
+
+                    
                     # Calculated values
                     close = c
                     allowed_diff = close * params["PercentagePrice"] / 100
