@@ -137,12 +137,15 @@ def fetchOHLC_Scanner(symbol):
     df['date']=df['date'].apply(pd.Timestamp,unit='s',tzinfo=pytz.timezone('Asia/Kolkata'))
     return df.tail(5)
 
-
-
 def fetchOHLC_Weekly(symbol):
-    # Approx 140 days for 20 weeks of daily data
-    dat = str(datetime.now().date())
-    dat1 = str((datetime.now() - timedelta(days=140)).date())
+    from datetime import datetime, timedelta
+    import pandas as pd
+    import numpy as np
+
+    # Extended range for full candle history
+    today = datetime.now()
+    dat = str((today + timedelta(days=1)).date())
+    dat1 = str((today - timedelta(days=160)).date())
 
     data = {
         "symbol": symbol,
@@ -154,28 +157,98 @@ def fetchOHLC_Weekly(symbol):
     }
 
     response = fyers.history(data=data)
-    print("response weekly:", response)
 
     cl = ['date', 'open', 'high', 'low', 'close', 'volume']
     df = pd.DataFrame(response['candles'], columns=cl)
 
-    # Convert Unix timestamp to datetime in IST
+    # Convert timestamp to datetime in IST
     df['date'] = pd.to_datetime(df['date'], unit='s').dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata')
     df.set_index('date', inplace=True)
 
-    # Resample to weekly candles, week ending on Friday
+
+    # ============ Weekly OHLC ============
     df_weekly = df.resample('W-FRI').agg({
         'open': 'first',
         'high': 'max',
         'low': 'min',
         'close': 'last',
         'volume': 'sum'
-    })
+    }).dropna()
 
-    # Drop incomplete weeks
-    df_weekly.dropna(inplace=True)
+    # ============ Monthly OHLC with actual last available dates ============
 
-    return df_weekly  # Return last 20 weeks
+    df['year'] = df.index.year
+    df['month'] = df.index.month
+
+    # Group by (year, month)
+    grouped = df.groupby(['year', 'month'])
+
+    records = []
+    index_dates = []
+
+    for (y, m), group in grouped:
+        open_price = group['open'].iloc[0]
+        high_price = group['high'].max()
+        low_price = group['low'].min()
+        close_price = group['close'].iloc[-1]
+        volume_sum = group['volume'].sum()
+
+        # Use the actual last trading day in the group as index
+        last_date = group.index[-1]
+        index_dates.append(last_date)
+
+        records.append([open_price, high_price, low_price, close_price, volume_sum])
+
+    df_monthly = pd.DataFrame(records, columns=['open', 'high', 'low', 'close', 'volume'], index=index_dates)
+
+    # Ensure index is sorted
+    df_monthly.sort_index(inplace=True)
+
+
+
+    return df_weekly, df_monthly
+
+
+
+
+
+# def fetchOHLC_Weekly(symbol):
+#     # Approx 140 days for 20 weeks of daily data
+#     dat = str(datetime.now().date())
+#     dat1 = str((datetime.now() - timedelta(days=140)).date())
+
+#     data = {
+#         "symbol": symbol,
+#         "resolution": "1D",
+#         "date_format": "1",
+#         "range_from": dat1,
+#         "range_to": dat,
+#         "cont_flag": "1"
+#     }
+
+#     response = fyers.history(data=data)
+#     # print("response weekly:", response)
+
+#     cl = ['date', 'open', 'high', 'low', 'close', 'volume']
+#     df = pd.DataFrame(response['candles'], columns=cl)
+
+#     # Convert Unix timestamp to datetime in IST
+#     df['date'] = pd.to_datetime(df['date'], unit='s').dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata')
+#     df.set_index('date', inplace=True)
+
+#     # Resample to weekly candles, week ending on Friday
+#     df_weekly = df.resample('W-FRI').agg({
+#         'open': 'first',
+#         'high': 'max',
+#         'low': 'min',
+#         'close': 'last',
+#         'volume': 'sum'
+#     })
+
+#     # Drop incomplete weeks
+#     df_weekly.dropna(inplace=True)
+
+#     return df_weekly  # Return last 20 weeks
 
 def fetchOHLC(symbol,tf):
     print("symbol: ",symbol)
