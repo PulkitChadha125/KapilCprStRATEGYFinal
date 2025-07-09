@@ -797,7 +797,7 @@ def main_strategy():
             if params["USE_Monthly_cpr"] == False:
                 params["MONTHLY_CONDITION"] = "ANY"
 
-            if now_time>=params["SquareOffTime"] and params["SquareOffExecuted"] == False and params["Trade"] != None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):  
+            if now_time>=params["SquareOffTime"] and params["SquareOffExecuted"] == False and params["Trade"] != None and params["WEEKLY_CONDITION"]is not None and params["MONTHLY_CONDITION"]is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):  
                 print(f"[{params['Symbol']}] Squareoff time reached. Executing squareoff.")
                 params["SquareOffExecuted"] = True
                 if params["Trade"] == "BUY":
@@ -975,7 +975,7 @@ def main_strategy():
 
                 # Target Check
             if(params["FyresLtp"] is not None and (params['FyresLtp']>=params["buytargetvalue"] or params["last_high"] >=params["buytargetvalue"] ) and 
-                params["TargetExecuted"] == False and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "BUY" or params["MONTHLY_CONDITION"] == "ANY")):
+                params["TargetExecuted"] == False and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "BUY" or params["MONTHLY_CONDITION"] == "ANY")):
                 print(f"[{params['Symbol']}] price: {params['FyresLtp']} or {params['last_high']} reached Buy Target Value= {params["buytargetvalue"]}")
                 params["TargetExecuted"] = True
                 write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} buytargetvalue REACHED price: {params['FyresLtp']} or last_high: {params['last_high']}, buytargetvalue: {params["buytargetvalue"]}")
@@ -987,7 +987,7 @@ def main_strategy():
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} price: {params['FyresLtp']} or last_high: {params['last_high']} reached Buy Target Value= {params["buytargetvalue"]}")
 
             if (params["FyresLtp"] is not None and (params['FyresLtp']<=params["selltargetvalue"] or params["last_low"]<=params["selltargetvalue"]) and 
-                params["TargetExecuted"] == False and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY")):
+                params["TargetExecuted"] == False and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY")):
                 print(f"[{params['Symbol']}] price: {params['FyresLtp']} or {params['last_low']} reached Sell Target Value= {params["selltargetvalue"]}")
                 params["TargetExecuted"] = True
                 write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} selltargetvalue REACHED last_low: {params["last_low"]} or FyresLtp: {params['FyresLtp']}, selltargetvalue: {params["selltargetvalue"] }")
@@ -1005,7 +1005,7 @@ def main_strategy():
                     #  buy condition
                 if (params["TakeTrade"] == True  and params["R1_S1_CONDITION"] == True and params["last_close"] > ema1 and
                     params["last_close"] > ema2 and params["last_close"] > r1 and
-                    params["last_close"]>prev_high and ema1>ema2 and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and
+                    params["last_close"]>prev_high and ema1>ema2 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and
                      (params["MONTHLY_CONDITION"] == "BUY" or params["MONTHLY_CONDITION"] == "ANY")) and params["Trade"] == None:
                     
                     print(f"[{params['Symbol']}] Buy condition met")
@@ -1017,7 +1017,7 @@ def main_strategy():
 
                     # sell condition
                 if (params["TakeTrade"] == True  and params["R1_S1_CONDITION"] == True and params["last_close"] < ema1 and params["last_close"] < ema2 and
-                    params["last_close"] < s1 and params["last_close"]<prev_low and ema1<ema2 and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and
+                    params["last_close"] < s1 and params["last_close"]<prev_low and ema1<ema2 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and
                      (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY")) and params["Trade"] == None:
                     print(f"[{params['Symbol']}] Sell condition met")
                     params["Trade"] = "SELL"
@@ -1026,11 +1026,11 @@ def main_strategy():
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} SELL @ {params['Symbol']}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}")
 
                 # REENTRY TRIGGERED LOGIC
-            if params["Trade"] == "REENTERYCHECKED":
+            if params["Trade"] is not None and params["Trade"] == "REENTERYCHECKED":
                 print(f"[{params['Symbol']}] REENTRY TRIGGERED LOGIC completed")
 
                 if (params["TakeTrade"] == True  and params["R1_S1_CONDITION"] == True and params["last_close"] > ema1 and params["last_close"] > ema2 and
-                    params["last_close"] > r1 and params["last_close"]>prev_high and ema1>ema2 and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and
+                    params["last_close"] > r1 and params["last_close"]>prev_high and ema1>ema2 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "BUY" or params["WEEKLY_CONDITION"] == "ANY") and
                      (params["MONTHLY_CONDITION"] == "BUY" or params["MONTHLY_CONDITION"] == "ANY")) :
                         print(f"[{params['Symbol']}] Buy re-entry condition met")
                         params["Trade"] = "BUY"
@@ -1041,7 +1041,7 @@ def main_strategy():
                     
                 if params["Trade"] == "REENTERYCHECKED":
                     if (params["TakeTrade"] == True  and params["R1_S1_CONDITION"] == True and params["last_close"] < ema1 and params["last_close"] < ema2 and
-                        params["last_close"] < s1 and params["last_close"]<prev_low and ema1<ema2 and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and
+                        params["last_close"] < s1 and params["last_close"]<prev_low and ema1<ema2 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and
                          (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY")) :
                         print(f"[{params['Symbol']}] Sell re-entry condition met")
                         params["Trade"] = "SELL"
@@ -1055,7 +1055,7 @@ def main_strategy():
             if params["Trade"] == "BUY":
                 print(f"[{params['Symbol']}] Stoploss  LOGIC checking for BUY")
 
-                if params["last_close"] < ema1 and params["RsiVal"] <= params["RSI_Buy"] and params["last_close"] >0 and params["RsiVal"] >0 and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):      
+                if params["last_close"] < ema1 and params["RsiVal"] <= params["RSI_Buy"] and params["last_close"] >0 and params["RsiVal"] >0 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):      
                     print(f"[{params['Symbol']}]Buy Stoploss executed")
                     params["Trade"] = "BUYSTOPLOSS"
                     print(f"[{params['Symbol']}] BUY Stoploss executed")    
@@ -1067,7 +1067,7 @@ def main_strategy():
             if params["Trade"] == "SELL":
                 print(f"[{params['Symbol']}] Stoploss  LOGIC checking for SELL")
                 
-                if params["last_close"] > ema1 and params["RsiVal"] >= params["RSI_Sell"] and params["last_close"] >0 and params["RsiVal"] >0 and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
+                if params["last_close"] > ema1 and params["RsiVal"] >= params["RSI_Sell"] and params["last_close"] >0 and params["RsiVal"] >0 and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
                     print(f"[{params['Symbol']}]Sell Stoploss executed")
                     params["Trade"] = "SELLSTOPLOSS"
                     print(f"[{params['Symbol']}] SELL Stoploss executed")
@@ -1079,7 +1079,7 @@ def main_strategy():
                     # REENTERY LOGIC
             if params["Trade"] == "BUYSTOPLOSS":
                 print(f"[{params['Symbol']}] REENTERY LOGIC checking for BUY")
-                if params["last_close"] < min(prev_high,r1) and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
+                if params["last_close"] < min(prev_high,r1) and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
                     print(f"[{params['Symbol']}]Price below both prev_day_high and r1, checking for buy re-entry")
                     params["Trade"] = "REENTERYCHECKED"
                     print(f"[{params['Symbol']}] BUY Reentry condition check completed")
@@ -1088,7 +1088,7 @@ def main_strategy():
 
             if params["Trade"] == "SELLSTOPLOSS":
                 print(f"[{params['Symbol']}] REENTERY LOGIC checking for SELL")
-                if params["last_close"] > max(prev_low,s1) and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
+                if params["last_close"] > max(prev_low,s1) and params["WEEKLY_CONDITION"] is not None and params["MONTHLY_CONDITION"] is not None and (params["WEEKLY_CONDITION"] == "SELL" or params["WEEKLY_CONDITION"] == "ANY") and (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY"):
                     print(f"[{params['Symbol']}]Price above both prev_day_low and s1, checking for sell re-entry")
                     params["Trade"] = "REENTERYCHECKED"
                     print(f"[{params['Symbol']}] SELL Reentry condition check completed")
@@ -1140,7 +1140,16 @@ def main_strategy():
                     "Allowed_R1_Pivot": params["Allowed_R1_Pivot"],
                     "Allowed_S1_Pivot": params["Allowed_S1_Pivot"],
                     "Allowed_R1_Pivot_value": params["Allowed_R1_Pivot_value"],
-                    "Allowed_S1_Pivot_value": params["Allowed_S1_Pivot_value"]
+                    "Allowed_S1_Pivot_value": params["Allowed_S1_Pivot_value"],
+                    "WEEKLY_CONDITION": params["WEEKLY_CONDITION"],
+                    "MONTHLY_CONDITION": params["MONTHLY_CONDITION"],
+                    "PrevWeekPivot": params["PrevWeekPivot"],
+                    "PrevWeekBottom": params["PrevWeekBottom"],
+                    "PrevWeekTop": params["PrevWeekTop"],
+                    "PrevMonthPivot": params["PrevMonthPivot"],
+                    "PrevMonthBottom": params["PrevMonthBottom"],
+                    "PrevMonthTop": params["PrevMonthTop"],
+                   
                 })
 
             if allowed_trades:
