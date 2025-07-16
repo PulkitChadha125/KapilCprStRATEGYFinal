@@ -81,7 +81,7 @@ def interactivelogin():
     time.sleep(1)
     driver.find_element(by=By.ID, value="confirmimage").click()
     search = driver.find_element(by=By.ID, value="login_password_field")
-    search.send_keys("Rohit@987")
+    search.send_keys("Rohit@654")
     driver.find_element("xpath", "/html/body/ui-view/div[1]/div/div/div/div[2]/form/div[4]/div[2]/button").click()
     time.sleep(2)
     totpField = driver.find_element(by=By.NAME, value="efirstPin")
@@ -657,8 +657,16 @@ def main_strategy():
                     prevWeekTop = (prevWeekPivot - prevWeekBottom) + prevWeekPivot
 
                     params["PrevWeekPivot"] = prevWeekPivot
-                    params["PrevWeekTop"] = prevWeekTop
-                    params["PrevWeekBottom"] = prevWeekBottom
+                    # params["PrevWeekTop"] =  prevWeekBottom
+                    # params["PrevWeekBottom"] = prevWeekTop
+
+                    if prevWeekTop > prevWeekBottom:
+                        params["PrevWeekTop"] = prevWeekTop
+                        params["PrevWeekBottom"] = prevWeekBottom
+                    if prevWeekTop <= prevWeekBottom:
+                        params["PrevWeekTop"] = prevWeekBottom
+                        params["PrevWeekBottom"] = prevWeekTop
+
 
                     print(f"PrevWeekOpen: {params['PrevWeekOpen']}")
                     print(f"PrevWeekHigh: {params['PrevWeekHigh']}")
@@ -685,8 +693,15 @@ def main_strategy():
                             prevMonthTop= (prevMonthPivot - prevMonthBottom) + prevMonthPivot
 
                             params["PrevMonthPivot"] = prevMonthPivot
-                            params["PrevMonthTop"] = prevMonthTop
-                            params["PrevMonthBottom"] = prevMonthBottom 
+
+                            if prevMonthTop > prevMonthBottom:
+                                params["PrevMonthTop"] = prevMonthTop
+                                params["PrevMonthBottom"] = prevMonthBottom
+                            if prevMonthTop <= prevMonthBottom:
+                                params["PrevMonthTop"] = prevMonthBottom
+                                params["PrevMonthBottom"] = prevMonthTop
+
+
 
                             print(f"PrevMonthOpen: {params['PrevMonthOpen']}")  
                             print(f"PrevMonthHigh: {params['PrevMonthHigh']}")
@@ -774,9 +789,9 @@ def main_strategy():
         for unique_key, params in result_dict.items():
 
             if params["USE_Weekly_cpr"] == True:
-                if params['FyresLtp'] > params['PrevWeekTop']:
+                if params['FyresLtp'] > params['PrevWeekTop'] and params['PrevWeekTop'] is not None and params['PrevWeekTop'] != 0 and params['FyresLtp'] is not None:
                     params["WEEKLY_CONDITION"] = "BUY"
-                elif params['FyresLtp'] < params['PrevWeekBottom']:
+                elif params['FyresLtp'] < params['PrevWeekBottom'] and params['PrevWeekBottom'] is not None and params['PrevWeekBottom'] != 0 and params['FyresLtp'] is not None:
                     params["WEEKLY_CONDITION"] = "SELL"
             
             if params["USE_Weekly_cpr"] == False:
@@ -784,9 +799,9 @@ def main_strategy():
 
             
             if params["USE_Monthly_cpr"] == True:
-                if params['FyresLtp'] > params['PrevMonthTop']:
+                if params['FyresLtp'] > params['PrevMonthTop'] and params['PrevMonthTop'] is not None and params['PrevMonthTop'] != 0 and params['FyresLtp'] is not None:
                     params["MONTHLY_CONDITION"] = "BUY"
-                elif params['FyresLtp'] < params['PrevMonthBottom']:
+                elif params['FyresLtp'] < params['PrevMonthBottom'] and params['PrevMonthBottom'] is not None and params['PrevMonthBottom'] != 0 and params['FyresLtp'] is not None:
                     params["MONTHLY_CONDITION"] = "SELL"
             
             if params["USE_Monthly_cpr"] == False:
@@ -797,13 +812,13 @@ def main_strategy():
                 params["SquareOffExecuted"] = True
                 if params["Trade"] == "BUY":
                     print(f"[{params['Symbol']}] Executing BUY position squareoff")
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
-                    #             price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
+                                price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} BUY position squareoff at {params['last_close']}")
                 elif params["Trade"] == "SELL":
                     print(f"[{params['Symbol']}] Executing SELL position squareoff")
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #             order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} SELL position squareoff at {params['last_close']}")
                 params["Trade"] = "TAKENOMORETRADES"
                 params["TargetExecuted"] = True
@@ -982,8 +997,8 @@ def main_strategy():
                 if params["Trade"] == "BUY":
                     print(f"[{params['Symbol']}] Buy Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #                 order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                    order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} price: {params['FyresLtp']} or last_high: {params['last_high']} reached Buy Target Value= {params["buytargetvalue"]}, Monthly_Condition: {params['MONTHLY_CONDITION']}, Weekly_Condition: {params['WEEKLY_CONDITION']}, USE_Weekly_cpr: {params['USE_Weekly_cpr']}, USE_Monthly_cpr: {params['USE_Monthly_cpr']}")
 
             if (params["FyresLtp"] is not None and (params['FyresLtp']<=params["selltargetvalue"] or params["last_low"]<=params["selltargetvalue"]) and 
@@ -994,8 +1009,8 @@ def main_strategy():
                 if params["Trade"] == "SELL":
                     print(f"[{params['Symbol']}] Sell Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #             order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} selltargetvalue REACHED last_low: {params["last_low"]} orEQltp: {params['FyresLtp']}, selltargetvalue: {params["selltargetvalue"] }, Monthly_Condition: {params["MONTHLY_CONDITION"]},SWeekly_Condition: {params["WEEKLY_CONDITION"]}")
                 
                 
@@ -1012,8 +1027,8 @@ def main_strategy():
                     print(f"[{params['Symbol']}] Buy condition met")
                     params["Trade"] = "BUY"
                     print(f"[{params['Symbol']}] BUY @ {params['Symbol']}  {params["last_close"]}")
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #             order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f'[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} BUY @ {params["Symbol"]}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1 > ema2}, last_close>ema1: {params["last_close"] > ema1}, last_close>ema2: {params["last_close"] > ema2}, last_close>r1: {params["last_close"] > r1}, PrevMonthTop: {params["PrevMonthTop"]}, PrevMonthBottom: {params["PrevMonthBottom"]}, PrevWeekTop: {params["PrevWeekTop"]}, PrevWeekBottom: {params["PrevWeekBottom"]}, WEEKLY_CONDITION: {params["WEEKLY_CONDITION"]}, MONTHLY_CONDITION: {params["MONTHLY_CONDITION"]}, Monthly_Condition: {params["MONTHLY_CONDITION"]}')
 
                     # sell condition
@@ -1023,8 +1038,8 @@ def main_strategy():
                     (params["MONTHLY_CONDITION"] == "SELL" or params["MONTHLY_CONDITION"] == "ANY")) and params["Trade"] == None:
                     print(f"[{params['Symbol']}] Sell condition met")
                     params["Trade"] = "SELL"
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #             order_side="SELL",price=params["FyersFutLtp"],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="SELL",price=params["FyersFutLtp"],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} SELL @ {params['Symbol']}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
                 # REENTRY TRIGGERED LOGIC
@@ -1038,8 +1053,8 @@ def main_strategy():
                         print(f"[{params['Symbol']}] Buy re-entry condition met")
                         params["Trade"] = "BUY"
                         print(f"[{params['Symbol']}] BUY re-entry condition met")
-                        # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                        #             order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
+                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                    order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY re-entry {params['last_close']},ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1>ema2}, last_close>ema1: {params['last_close']>ema1},last_close>ema2: {params['last_close']>ema2}, last_close>r1: {params['last_close']>r1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
                     
                 if params["Trade"] == "REENTERYCHECKED":
@@ -1050,8 +1065,8 @@ def main_strategy():
                         print(f"[{params['Symbol']}] Sell re-entry condition met")
                         params["Trade"] = "SELL"
                         print(f"[{params['Symbol']}] SELL re-entry condition met")
-                        # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                        #             order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
+                        place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                    order_side="SELL",price=params['FyersFutLtp'],unique_key="1234")
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL re-entry {params['last_close']}, ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, SWeekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 
@@ -1063,8 +1078,8 @@ def main_strategy():
                     print(f"[{params['Symbol']}]Buy Stoploss executed")
                     params["Trade"] = "BUYSTOPLOSS"
                     print(f"[{params['Symbol']}] BUY Stoploss executed")    
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
-                    #              price=params['FyersFutLtp'],unique_key="1234")  
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
+                                 price=params['FyersFutLtp'],unique_key="1234")  
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 
@@ -1075,8 +1090,8 @@ def main_strategy():
                     print(f"[{params['Symbol']}]Sell Stoploss executed")
                     params["Trade"] = "SELLSTOPLOSS"
                     print(f"[{params['Symbol']}] SELL Stoploss executed")
-                    # place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                    #             order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
+                    place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
+                                order_side="BUY",price=params['FyersFutLtp'],unique_key="1234")
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 

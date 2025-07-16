@@ -897,3 +897,5 @@
 {"level":"DEBUG","location":"[get_call:140] fyersModel","message":{"Status Code":200,"API":"/history"},"timestamp":"2025-07-11 18:59:38,924+0530","service":"FyersAPIRequest"}
 {"level":"DEBUG","location":"[get_call:140] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-07-11 19:03:32,188+0530","service":"FyersAPIRequest"}
 {"level":"DEBUG","location":"[get_call:140] fyersModel","message":{"Status Code":200,"API":"/history"},"timestamp":"2025-07-11 19:03:50,261+0530","service":"FyersAPIRequest"}
+{"level":"DEBUG","location":"[get_call:140] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-07-15 21:31:50,219+0530","service":"FyersAPIRequest"}
+{"level":"DEBUG","location":"[get_call:140] fyersModel","message":{"Status Code":200,"API":"/history"},"timestamp":"2025-07-15 21:32:08,482+0530","service":"FyersAPIRequest"}
