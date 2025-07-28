@@ -122,17 +122,29 @@ def interactivelogin():
 
 #  INTERAACTIVE LOGIN ABOVE
 
-def place_order(nfo_ins_id,order_quantity,order_side,price,unique_key,symbol):
+def place_order(nfo_ins_id,order_quantity,order_side,price,unique_key,symbol,ticksize):
     import random
+    import math
     val=None
-    write_to_order_logs(f"Initiating order placement for : [{datetime.now()}] {symbol} {order_side} quantity: {order_quantity} price: {price}")
+    # write_to_order_logs(f"Initiating order placement for : [{datetime.now()}] {symbol} {order_side} quantity: {order_quantity} price: {price}")
+    one_percent = price * 0.01
+    adjusted_price = price
     if order_side == "BUY":
         val=xt.TRANSACTION_TYPE_BUY
+        adjusted_price = price + one_percent
+        # Round up to nearest multiple of ticksize for buy orders
+        if ticksize and ticksize > 0:
+            adjusted_price = math.ceil(adjusted_price / ticksize) * ticksize
+        
     elif order_side == "SELL":
         val=xt.TRANSACTION_TYPE_SELL
+        adjusted_price = price - one_percent
+        # Round down to nearest multiple of ticksize for sell orders
+        if ticksize and ticksize > 0:
+            adjusted_price = math.floor(adjusted_price / ticksize) * ticksize
 
-        
-    response=xt.place_order (
+    try:
+        response=xt.place_order (
         exchangeSegment=xt.EXCHANGE_NSEFO,
         exchangeInstrumentID=nfo_ins_id,
         productType=xt.PRODUCT_MIS,
@@ -141,16 +153,22 @@ def place_order(nfo_ins_id,order_quantity,order_side,price,unique_key,symbol):
         timeInForce=xt.VALIDITY_DAY,
         disclosedQuantity=0,
         orderQuantity=order_quantity,
-        limitPrice=price,
+        limitPrice=adjusted_price,
         stopPrice=0,
         apiOrderSource="WEBAPI",
-        orderUniqueIdentifier=random.randint(100000, 999999),
+        orderUniqueIdentifier="454845",
         clientID="66BP01" )
 
-    print("Place Order: ", response)
-    write_to_order_logs(f"Broker Order Response: [{datetime.now()}] {symbol} {order_side} quantity: {order_quantity} price: {price} response: {response}")
-    print("-" * 50) 
-    write_to_order_logs("-" * 50)
+        print("Place Order: ", response)
+        write_to_order_logs(f"Broker Order Response: [{datetime.now()}] {symbol} {order_side} quantity: {order_quantity} price: {price} response: {response}")
+        print("-" * 50) 
+    except Exception as e:
+        print(f"Error placing order: {str(e)}")
+        write_to_order_logs(f"Error placing order {symbol} {order_side} quantity: {order_quantity} price: {price} error: {str(e)}")
+        write_to_order_logs("-" * 50)
+        traceback.print_exc()
+
+     
     
 
 def write_to_order_logs(message):
@@ -195,15 +213,18 @@ def get_user_settings():
                 symbol=symbol,
                 expiryDate=expiry_api_format
             )
+            # print(f"fut_response: {fut_response}")
 
             if fut_response['type'] == 'success' and 'result' in fut_response:
                 result_item = fut_response['result'][0]
                 NSEFOinstrument_id = int(result_item['ExchangeInstrumentID'])
                 lot_size = int(result_item.get('LotSize', 0))
+                tick_size = float(result_item.get('TickSize', 0.0))  # Extract tick size from future response
             else:
                 print(f"[ERROR] Could not get FUTSTK instrument ID for {symbol} {expiry_api_format}")
                 NSEFOinstrument_id = None
                 lot_size = None
+                tick_size = None
 
             # Fetch EQ instrument ID (NSECM)
             eq_response = xts_marketdata.get_equity_symbol(
@@ -232,6 +253,7 @@ def get_user_settings():
                 "Symbol": symbol, "unique_key": f"{symbol}_{expiry}",
                 "Expiry": expiry,
                 "Quantity": int(row['Quantity']), "LotSize": lot_size,
+                "TickSize": tick_size,  # Add tick size to symbol dictionary
                 "Timeframe": int(row['Timeframe']),
                 "MA1": int(row['MA1']), "MA2": int(row['MA2']),
                 "RSI_Period": int(row['RSI_Period']), "RSI_Buy": int(row['RSI_Buy']),
@@ -831,12 +853,12 @@ def main_strategy():
                 if params["Trade"] == "BUY":
                     print(f"[{params['Symbol']}] Executing BUY position squareoff")
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
-                                price=params['FutBid'],unique_key="1234",symbol=params["Symbol"])
+                                price=params['FutBid'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} BUY position squareoff at {params['last_close']}")
                 elif params["Trade"] == "SELL":
                     print(f"[{params['Symbol']}] Executing SELL position squareoff")
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"])
+                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] {params['Symbol']} SELL position squareoff at {params['last_close']}")
                 params["Trade"] = "TAKENOMORETRADES"
                 params["TargetExecuted"] = True
@@ -1013,7 +1035,7 @@ def main_strategy():
                     print(f"[{params['Symbol']}] Buy Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                    order_side="SELL",price=params['FutBid'],unique_key="1234",symbol=params["Symbol"])
+                                    order_side="SELL",price=params['FutBid'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} price: {params['FyresLtp']} or last_high: {params['last_high']} reached Buy Target Value= {params["buytargetvalue"]}, Monthly_Condition: {params['MONTHLY_CONDITION']}, Weekly_Condition: {params['WEEKLY_CONDITION']}, USE_Weekly_cpr: {params['USE_Weekly_cpr']}, USE_Monthly_cpr: {params['USE_Monthly_cpr']}")
 
             if (params["FyresLtp"] is not None and (params['FyresLtp']<=params["selltargetvalue"] or params["last_low"]<=params["selltargetvalue"]) and 
@@ -1025,7 +1047,7 @@ def main_strategy():
                     print(f"[{params['Symbol']}] Sell Target  executed")
                     params["Trade"] = "TAKENOMORETRADES"
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"])
+                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} selltargetvalue REACHED last_low: {params["last_low"]} orEQltp: {params['FyresLtp']}, selltargetvalue: {params["selltargetvalue"] }, Monthly_Condition: {params["MONTHLY_CONDITION"]},SWeekly_Condition: {params["WEEKLY_CONDITION"]}")
                 
                 
@@ -1043,7 +1065,7 @@ def main_strategy():
                     params["Trade"] = "BUY"
                     print(f"[{params['Symbol']}] BUY @ {params['Symbol']}  {params["last_close"]}")
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"])
+                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f'[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} BUY @ {params["Symbol"]}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1 > ema2}, last_close>ema1: {params["last_close"] > ema1}, last_close>ema2: {params["last_close"] > ema2}, last_close>r1: {params["last_close"] > r1}, PrevMonthTop: {params["PrevMonthTop"]}, PrevMonthBottom: {params["PrevMonthBottom"]}, PrevWeekTop: {params["PrevWeekTop"]}, PrevWeekBottom: {params["PrevWeekBottom"]}, WEEKLY_CONDITION: {params["WEEKLY_CONDITION"]}, MONTHLY_CONDITION: {params["MONTHLY_CONDITION"]}, Monthly_Condition: {params["MONTHLY_CONDITION"]}')
 
                     # sell condition
@@ -1054,7 +1076,7 @@ def main_strategy():
                     print(f"[{params['Symbol']}] Sell condition met")
                     params["Trade"] = "SELL"
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                order_side="SELL",price=params["FutBid"],unique_key="1234",symbol=params["Symbol"])
+                                order_side="SELL",price=params["FutBid"],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} SELL @ {params['Symbol']}  {params["last_close"]} ,ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
                 # REENTRY TRIGGERED LOGIC
@@ -1069,7 +1091,7 @@ def main_strategy():
                         params["Trade"] = "BUY"
                         print(f"[{params['Symbol']}] BUY re-entry condition met")
                         place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                    order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"])
+                                    order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY re-entry {params['last_close']},ema1: {ema1}, ema2: {ema2}, r1: {r1}, prev_high: {prev_high}, ema1>ema2: {ema1>ema2}, last_close>ema1: {params['last_close']>ema1},last_close>ema2: {params['last_close']>ema2}, last_close>r1: {params['last_close']>r1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
                     
                 if params["Trade"] == "REENTERYCHECKED":
@@ -1081,7 +1103,7 @@ def main_strategy():
                         params["Trade"] = "SELL"
                         print(f"[{params['Symbol']}] SELL re-entry condition met")
                         place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                    order_side="SELL",price=params['FutBid'],unique_key="1234",symbol=params["Symbol"])
+                                    order_side="SELL",price=params['FutBid'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                         write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL re-entry {params['last_close']}, ema1: {ema1}, ema2: {ema2}, s1: {s1}, prev_low: {prev_low}, ema1<ema2: {ema1<ema2}, last_close<ema1: {params['last_close']<ema1}, last_close<ema2: {params['last_close']<ema2}, last_close<s1: {params['last_close']<s1}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, SWeekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 
@@ -1094,7 +1116,7 @@ def main_strategy():
                     params["Trade"] = "BUYSTOPLOSS"
                     print(f"[{params['Symbol']}] BUY Stoploss executed")    
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],order_side="SELL",
-                                 price=params['FutBid'],unique_key="1234",symbol=params["Symbol"])  
+                                 price=params['FutBid'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])  
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} BUY Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 
@@ -1106,7 +1128,7 @@ def main_strategy():
                     params["Trade"] = "SELLSTOPLOSS"
                     print(f"[{params['Symbol']}] SELL Stoploss executed")
                     place_order(nfo_ins_id=params["NSEFOexchangeInstrumentID"],order_quantity=params["OrderQuantity"],
-                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"])
+                                order_side="BUY",price=params['FutAsk'],unique_key="1234",symbol=params["Symbol"],ticksize=params["TickSize"])
                     write_to_order_logs(f"[{datetime.now()}] Candletimestamp: {params["Candletimestamp"]} {params['Symbol']} SELL Stoploss Last Close: {params["last_close"]}, ema1: {ema1}, rsi_val: {rsi_val}, Monthly_Condition: {params["MONTHLY_CONDITION"]}, Weekly_Condition: {params["WEEKLY_CONDITION"]}")
 
 
@@ -1152,6 +1174,7 @@ def main_strategy():
                 if params.get("TakeTrade") == True and params.get("R1_S1_CONDITION") == True:
                     allowed_trades.append({
                     "Symbol":params["Symbol"],
+                    "TickSize": params["TickSize"],  # Add tick size to allowed trades export
                     "PrevOpen" : params["PrevOpen"],
                     "PrevHigh": params["PrevHigh"],
                     "PrevLow": params["PrevLow"],
